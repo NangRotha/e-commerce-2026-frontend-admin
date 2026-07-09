@@ -13,7 +13,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Helper function for images
 const getImageUrl = (url) => {
   if (!url) return '';
-  return url.startsWith('http') ? url : url;
+  if (url.startsWith('http')) return url;
+  const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://127.0.0.1:8000';
+  return `${baseUrl}${url}`;
 };
 
 // Animation Variants

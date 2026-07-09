@@ -1,11 +1,32 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
+const BASE_URL = API_URL === '/api' ? '' : API_URL.replace('/api', '');
 
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
+
+function rewriteImageUrls(data) {
+  if (Array.isArray(data)) {
+    return data.map(rewriteImageUrls);
+  }
+  if (data && typeof data === 'object') {
+    const result = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (key === 'image_url' && typeof value === 'string' && value.startsWith('/uploads/')) {
+        result[key] = `${BASE_URL}${value}`;
+      } else if (typeof value === 'object' && value !== null) {
+        result[key] = rewriteImageUrls(value);
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+  return data;
+}
 
 // Interceptor: Automatically attach the JWT token to every request
 api.interceptors.request.use(
@@ -19,9 +40,12 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: on 401, clear the (expired/invalid) token and send admin to login
+// Response interceptor: rewrite relative image URLs and handle 401
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    response.data = rewriteImageUrls(response.data);
+    return response;
+  },
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
